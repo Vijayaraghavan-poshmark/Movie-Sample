@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movie.model.Movie
 import com.example.movie.network.repository.NetworkRepository
+import com.example.movie.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
@@ -20,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     repository: NetworkRepository,
-): ViewModel() {
+) : ViewModel() {
     val searchedMovie: StateFlow<SearchUiState>
 
     private val _loadingState = MutableStateFlow(false)
@@ -28,6 +31,10 @@ class SearchViewModel @Inject constructor(
     private val _moviesState = MutableStateFlow<List<Movie>>(listOf())
 
     private val _searchText = MutableStateFlow("")
+
+    private val _input = MutableSharedFlow<SearchInput>(extraBufferCapacity = 20)
+    private val _output = MutableSharedFlow<SearchEvent>(extraBufferCapacity = 20)
+    val output = _output.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -46,12 +53,33 @@ class SearchViewModel @Inject constructor(
             }
         }
 
-        searchedMovie = combine(_moviesState, _loadingState, _errorMsg) { movies, loading, errorMsg ->
-            SearchUiState(isLoading = loading, movies, errorMsg)
-        }.debounce(200).stateIn(viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = SearchUiState(false, listOf(), null))
+        searchedMovie =
+            combine(_moviesState, _loadingState, _errorMsg) { movies, loading, errorMsg ->
+                SearchUiState(isLoading = loading, movies, errorMsg)
+            }.debounce(200).stateIn(
+                viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = SearchUiState(false, listOf(), null)
+            )
+
+        viewModelScope.launch {
+            _input.collect {
+                when (it) {
+                    SearchInput.BackClicked -> {
+                        _output.tryEmit(SearchEvent.NavigateUp)
+                    }
+                    is SearchInput.SearchClicked -> {
+                        _output.tryEmit(SearchEvent.NavigateTo(Screen.Detail(it.movie)))
+                    }
+                    is SearchInput.TextChanged -> {
+                        _searchText.value = it.value
+                    }
+                }
+            }
+        }
     }
 
-    fun onTextChanged(value: String) {
-        _searchText.value = value
+    fun sendEvent(event: SearchInput) {
+        _input.tryEmit(event)
     }
 }

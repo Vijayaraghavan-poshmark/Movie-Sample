@@ -3,6 +3,7 @@ package com.example.movie.ui
 import app.cash.turbine.test
 import com.example.movie.model.Movie
 import com.example.movie.network.repository.FakeNetworkRepositoryImpl
+import com.example.movie.ui.search.SearchInput
 import com.example.movie.ui.search.SearchUiState
 import com.example.movie.ui.search.SearchViewModel
 import kotlinx.coroutines.test.runTest
@@ -25,7 +26,7 @@ class SearchViewModelTest {
         viewModel.searchedMovie.test {
             var response = awaitItem()
             assert(response == SearchUiState(isLoading=false, movies= listOf(), errorMsg=null))
-            viewModel.onTextChanged("abc")
+            viewModel.sendEvent(SearchInput.TextChanged("abc"))
             response = awaitItem()
             assert(response == SearchUiState(isLoading=true, movies= listOf(), errorMsg=null))
             response = awaitItem()
@@ -38,7 +39,7 @@ class SearchViewModelTest {
         viewModel.searchedMovie.test {
             var response = awaitItem()
             assert(response == SearchUiState(isLoading=false, movies= listOf(), errorMsg=null))
-            viewModel.onTextChanged("error")
+            viewModel.sendEvent(SearchInput.TextChanged("error"))
             response = awaitItem()
             assert(response == SearchUiState(isLoading=true, movies= listOf(), errorMsg=null))
             response = awaitItem()
@@ -51,9 +52,9 @@ class SearchViewModelTest {
         viewModel.searchedMovie.test {
             var response = awaitItem()
             assert(response == SearchUiState(isLoading = false, movies = listOf(), errorMsg = null))
-            viewModel.onTextChanged("a")
+            viewModel.sendEvent(SearchInput.TextChanged("a"))
             expectNoEvents()
-            viewModel.onTextChanged("ab")
+            viewModel.sendEvent(SearchInput.TextChanged("ab"))
             expectNoEvents()
         }
     }

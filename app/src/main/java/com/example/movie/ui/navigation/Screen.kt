@@ -13,26 +13,32 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.movie.model.Movie
 import com.example.movie.ui.detail.DetailScreen
 import com.example.movie.ui.detail.DetailViewModel
+import com.example.movie.ui.main.MainActionEvent
+import com.example.movie.ui.main.MainInput
 import com.example.movie.ui.main.MainScreen
 import com.example.movie.ui.main.MainViewModel
+import com.example.movie.ui.search.SearchEvent
+import com.example.movie.ui.search.SearchInput
 import com.example.movie.ui.search.SearchScreen
 import com.example.movie.ui.search.SearchViewModel
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
 
@@ -122,15 +128,30 @@ fun MovieApp(
                 val viewModel = hiltViewModel<MainViewModel>()
                 val uiState by viewModel.uiState.collectAsState()
                 val listState = rememberLazyGridState()
+
+                val scope = rememberCoroutineScope()
+                LaunchedEffect(Unit) {
+                    scope.launch {
+                        viewModel.output.collect {
+                            when (it) {
+                                is MainActionEvent.NavigateTo -> navController.navigate(it.screen)
+                            }
+                        }
+                    }
+                }
+
+
                 MainScreen(
                     listState = listState,
                     movies = uiState.movies,
                     isLoading = uiState.isLoading,
                     errorMessage = uiState.errorMessage,
                     baseImageUrl = viewModel.baseImageUrl,
-                    loadMore = viewModel::loadMore,
+                    loadMore = {
+                        viewModel.setInputAction(MainInput.LoadMore)
+                    },
                     onClick = {
-                        navController.navigate(Screen.Detail(it))
+                        viewModel.setInputAction(MainInput.MovieClicked(it))
                     }
                 )
             }
@@ -154,14 +175,33 @@ fun MovieApp(
                 val viewModel = hiltViewModel<SearchViewModel>()
                 val queriedMovies by viewModel.searchedMovie.collectAsState()
 
+                val scope = rememberCoroutineScope()
+                LaunchedEffect(Unit) {
+                    scope.launch {
+                        viewModel.output.collect {
+                            when (it) {
+                                is SearchEvent.NavigateTo -> {
+                                    navController.navigate(it.screen)
+                                }
+                                SearchEvent.NavigateUp -> {
+                                    navController.navigateUp()
+                                }
+                            }
+                        }
+                    }
+                }
+
                 SearchScreen(
-                    onTextChanged = viewModel::onTextChanged,
+                    onTextChanged = {
+                        viewModel.sendEvent(SearchInput.TextChanged(it))
+                    },
                     onMovieClicked = {
-                        navController.navigate(Screen.Detail(it))
+                        viewModel.sendEvent(SearchInput.SearchClicked(it))
+
                     },
                     queriedMovies = queriedMovies.movies,
                     onNavigateUp = {
-                        navController.navigateUp()
+                        viewModel.sendEvent(SearchInput.BackClicked)
                     },
                     isLoading = queriedMovies.isLoading,
                     errorMessage = queriedMovies.errorMsg,
