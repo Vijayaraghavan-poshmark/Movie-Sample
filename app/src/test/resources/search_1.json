@@ -1,0 +1,46 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/1.jpg",
+      "genre_ids": [
+        28,
+        80,
+        53
+      ],
+      "id": 974453,
+      "original_language": "en",
+      "original_title": "abc",
+      "overview": "abc",
+      "popularity": 405.938,
+      "poster_path": "/1.jpg",
+      "release_date": "2024-10-31",
+      "title": "abc",
+      "video": false,
+      "vote_average": 5.902,
+      "vote_count": 316
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/2.jpg",
+      "genre_ids": [
+        18,
+        99
+      ],
+      "id": 446681,
+      "original_language": "es",
+      "original_title": "AB",
+      "overview": "def",
+      "popularity": 0.564,
+      "poster_path": "/2.jpg",
+      "release_date": "2014-07-10",
+      "title": "def",
+      "video": false,
+      "vote_average": 7,
+      "vote_count": 3
+    }
+  ],
+  "total_pages": 500,
+  "total_results": 10000
+}
