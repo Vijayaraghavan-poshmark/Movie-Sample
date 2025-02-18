@@ -129,14 +129,12 @@ fun MovieApp(
                 val uiState by viewModel.uiState.collectAsState()
                 val listState = rememberLazyGridState()
 
-                val scope = rememberCoroutineScope()
-                LaunchedEffect(Unit) {
-                    scope.launch {
-                        viewModel.output.collect {
-                            when (it) {
-                                is MainActionEvent.NavigateTo -> navController.navigate(it.screen)
-                            }
+                LaunchedEffect(uiState.event) {
+                    uiState.event?.let {
+                        when (it) {
+                            is MainActionEvent.NavigateTo -> navController.navigate(it.screen)
                         }
+                        viewModel.setInputAction(MainInput.Clear)
                     }
                 }
 
@@ -175,19 +173,17 @@ fun MovieApp(
                 val viewModel = hiltViewModel<SearchViewModel>()
                 val queriedMovies by viewModel.searchedMovie.collectAsState()
 
-                val scope = rememberCoroutineScope()
-                LaunchedEffect(Unit) {
-                    scope.launch {
-                        viewModel.output.collect {
-                            when (it) {
-                                is SearchEvent.NavigateTo -> {
-                                    navController.navigate(it.screen)
-                                }
-                                SearchEvent.NavigateUp -> {
-                                    navController.navigateUp()
-                                }
+                LaunchedEffect(queriedMovies.event) {
+                    queriedMovies.event?.let {
+                        when (it) {
+                            is SearchEvent.NavigateTo -> {
+                                navController.navigate(it.screen)
+                            }
+                            SearchEvent.NavigateUp -> {
+                                navController.navigateUp()
                             }
                         }
+                        viewModel.sendEvent(SearchInput.Clear)
                     }
                 }
 

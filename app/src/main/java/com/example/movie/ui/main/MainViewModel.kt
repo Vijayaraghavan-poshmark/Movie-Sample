@@ -1,100 +1,126 @@
 package com.example.movie.ui.main
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.cash.molecule.AndroidUiDispatcher
+import app.cash.molecule.RecompositionMode
+import app.cash.molecule.launchMolecule
 import com.example.movie.di.BaseImageUrl
 import com.example.movie.model.Movie
 import com.example.movie.network.repository.NetworkRepository
 import com.example.movie.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val networkRepository: NetworkRepository,
+    private val presenter: MainPresenter,
     @BaseImageUrl val baseImageUrl: String,
 ) : ViewModel() {
 
-    var uiState: StateFlow<MainUiState>
+    private val scope = CoroutineScope(viewModelScope.coroutineContext + AndroidUiDispatcher.Main)
+    val uiState = scope.launchMolecule(RecompositionMode.ContextClock) {
+        presenter.generateUi()
+    }
 
-    private val _moviesState = MutableStateFlow<List<Movie>>(listOf())
-    private val _loadingState = MutableStateFlow(true)
-    private val _errorMsg = MutableStateFlow<String?>(null)
+    fun setInputAction(input: MainInput) {
+        presenter.setInputAction(input)
+    }
+}
 
+class MainPresenter @Inject constructor(
+    private val networkRepository: NetworkRepository,
+) {
+    private val state = StateHolder()
     private var currentPage = 1
     private val mutex = Mutex()
     private var isRunning = false
 
     private val _inputs = MutableSharedFlow<MainInput>(extraBufferCapacity = 10)
-    private val _outputs = MutableSharedFlow<MainActionEvent>(extraBufferCapacity = 10)
-    val output = _outputs.asSharedFlow()
 
-    init {
-        uiState = combine(_moviesState, _loadingState, _errorMsg) { movies, loading, errorMsg ->
-            MainUiState(movies = movies, isLoading = loading, errorMessage = errorMsg)
-        }.onStart { getMovieList() }
-        .debounce(200)
-        .stateIn(
-            viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            MainUiState(true, listOf(), null)
-        )
+    @Composable
+    fun generateUi(): MainUiState {
+        HandleEvent()
+        LaunchedEffect(Unit) {
+            getMovieList(state)
+        }
+        return state.toMainUi()
+    }
 
-        viewModelScope.launch {
-            _inputs.collect {
-                when (it) {
-                    MainInput.LoadMore -> loadMore()
-                    is MainInput.MovieClicked -> {
-                        _outputs.tryEmit(MainActionEvent.NavigateTo(Screen.Detail(it.movie)))
-                    }
+    @Composable
+    fun HandleEvent() = LaunchedEffect(Unit) {
+        _inputs.collect {
+            when (it) {
+                MainInput.LoadMore -> loadMore(state)
+
+                is MainInput.MovieClicked -> {
+                    state.event = MainActionEvent.NavigateTo(Screen.Detail(it.movie))
+                }
+
+                MainInput.Clear -> {
+                    state.event = null
                 }
             }
+        }
+    }
+
+    private suspend fun loadMore(state: StateHolder) {
+        if (!isRunning) {
+            getMovieList(state)
+        }
+    }
+
+    private suspend fun getMovieList(state: StateHolder) {
+        mutex.withLock {
+            isRunning = true
+            runCatching {
+                state.isLoading = true
+                val movieList = networkRepository.getMoviesList(currentPage)
+                if (currentPage + 1 <= (movieList.total_pages ?: 0)) {
+                    currentPage++
+                }
+                state.isLoading = false
+                state.movies.addAll(movieList.results)
+                state.errorMessage = null
+            }.onFailure {
+                state.isLoading = false
+                state.errorMessage = "Error"
+                state.movies.clear()
+            }
+            isRunning = false
         }
     }
 
     fun setInputAction(input: MainInput) {
         _inputs.tryEmit(input)
     }
+}
 
-    private fun loadMore() {
-        if (!isRunning) {
-            getMovieList()
-        }
-    }
+@Stable
+internal class StateHolder {
+    var isLoading by mutableStateOf(true)
+    val movies = mutableStateListOf<Movie>()
+    var errorMessage by mutableStateOf<String?>(null)
+    var event by mutableStateOf<MainActionEvent?>(null)
 
-    private fun getMovieList() {
-        viewModelScope.launch {
-            mutex.withLock {
-                isRunning = true
-                runCatching {
-                    _loadingState.emit(true)
-                    val movieList = networkRepository.getMoviesList(currentPage)
-                    if (currentPage + 1 <= (movieList.total_pages ?: 0)) {
-                        currentPage++
-                    }
-                    _loadingState.emit(false)
-                    _moviesState.value += movieList.results
-                    _errorMsg.emit(null)
-                }.onFailure {
-                    _loadingState.emit(false)
-                    _errorMsg.emit("Error")
-                    _moviesState.emit(listOf())
-                }
-                isRunning = false
-            }
-
-        }
+    fun toMainUi(): MainUiState {
+        return MainUiState(
+            isLoading,
+            movies.toList(),
+            errorMessage,
+            event
+        )
     }
 }
+

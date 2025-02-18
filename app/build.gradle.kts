@@ -40,6 +40,9 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -77,4 +80,6 @@ dependencies {
 
     testImplementation(libs.turbine)
     testImplementation(libs.coroutine.test)
+
+    implementation(libs.molecule)
 }

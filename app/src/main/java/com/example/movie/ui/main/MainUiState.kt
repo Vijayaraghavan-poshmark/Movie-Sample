@@ -1,19 +1,24 @@
 package com.example.movie.ui.main
 
+import androidx.compose.runtime.Immutable
 import com.example.movie.model.Movie
 import com.example.movie.ui.navigation.Screen
 
+@Immutable
 data class MainUiState(
     val isLoading: Boolean,
     val movies: List<Movie>,
-    val errorMessage: String?
+    val errorMessage: String?,
+    val event: MainActionEvent?,
 )
 
 sealed interface MainInput {
     data class MovieClicked(val movie: Movie): MainInput
     object LoadMore: MainInput
+    object Clear: MainInput
 }
 
+@Immutable
 sealed interface MainActionEvent {
     data class NavigateTo(val screen: Screen): MainActionEvent
 }

@@ -19,6 +19,7 @@ coroutine = "1.10.1"
 kotlin-serialization-plugin = "1.9.23"
 kotlin-serialization = "1.6.3"
 turbine = "1.0.0"
+molecule = "2.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +49,7 @@ kotlin-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-s
 kotlin-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlin-serialization"}
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutine" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+molecule = { group = "app.cash.molecule", name = "molecule-runtime", version.ref = "molecule" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
