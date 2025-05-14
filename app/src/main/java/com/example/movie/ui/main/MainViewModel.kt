@@ -41,6 +41,7 @@ class MainViewModel @Inject constructor(
     private val _outputs = MutableSharedFlow<MainActionEvent>(extraBufferCapacity = 10)
     val output = _outputs.asSharedFlow()
 
+
     init {
         uiState = combine(_moviesState, _loadingState, _errorMsg) { movies, loading, errorMsg ->
             MainUiState(movies = movies, isLoading = loading, errorMessage = errorMsg)
